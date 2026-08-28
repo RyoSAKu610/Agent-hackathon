@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qa-bounty-agent"
+version = "0.1.0"
+description = "Policy-gated QA opportunity scout and authorized browser smoke-test agent"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "RyoSAKu610"}]
+dependencies = []
+
+[project.optional-dependencies]
+browser = ["playwright>=1.62,<2"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+qa-agent = "qa_bounty_agent.cli:main"
+
+[tool.setuptools.package-data]
+qa_bounty_agent = ["platform_policies.json"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
