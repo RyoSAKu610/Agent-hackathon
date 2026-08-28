@@ -1,0 +1,66 @@
+{
+  "utest": {
+    "auto_accept": false,
+    "auto_test": false,
+    "external_ai_project_data": false,
+    "mode": "discovery_only",
+    "reason": "uTest permits limited generic AI assistance but prohibits sending confidential/client/personal data to external AI tools. This agent therefore never automates project acceptance or project execution on uTest.",
+    "source": "https://www.utest.com/terms-and-conditions"
+  },
+  "testio": {
+    "auto_accept": false,
+    "auto_test": false,
+    "external_ai_project_data": false,
+    "mode": "discovery_only",
+    "reason": "Test IO testing standards prohibit automated tools/scripts that compromise testing integrity. This agent is limited to opportunity triage and manual preparation.",
+    "source": "https://academy.test.io/en/articles/11939982-test-io-testing-standards"
+  },
+  "testlio": {
+    "auto_accept": false,
+    "auto_test": false,
+    "external_ai_project_data": false,
+    "mode": "discovery_only",
+    "reason": "Testlio restricts public/external AI while performing services unless expressly authorized. This agent does not execute Testlio project work.",
+    "source": "https://www.testlio.com/ai-use-policy"
+  },
+  "testbirds": {
+    "auto_accept": false,
+    "auto_test": false,
+    "external_ai_project_data": false,
+    "mode": "manual_review",
+    "reason": "No explicit permission for autonomous acceptance/execution is assumed. Human review is required before any project action.",
+    "source": "https://nest.testbirds.com/terms"
+  },
+  "testerwork": {
+    "auto_accept": false,
+    "auto_test": false,
+    "external_ai_project_data": false,
+    "mode": "manual_review",
+    "reason": "No explicit permission for autonomous acceptance/execution is assumed. Human review is required before any project action.",
+    "source": "https://testerwork.com/"
+  },
+  "generic-authorized": {
+    "auto_accept": false,
+    "auto_test": true,
+    "external_ai_project_data": false,
+    "mode": "authorized_test",
+    "reason": "Browser testing is allowed only when the operator explicitly confirms authorization for the target.",
+    "source": null
+  },
+  "opire": {
+    "auto_accept": false,
+    "auto_test": false,
+    "external_ai_project_data": false,
+    "mode": "repo_bounty",
+    "reason": "Opire rewards are resolved through public GitHub issues/PRs. Discovery and repository analysis can be automated, but /try, /claim, and PR submission remain explicit external actions.",
+    "source": "https://docs.opire.dev/overview/getting-started"
+  },
+  "algora": {
+    "auto_accept": false,
+    "auto_test": false,
+    "external_ai_project_data": false,
+    "mode": "repo_bounty",
+    "reason": "Algora supports GitHub issue bounties and has public examples of AI-assisted claims, but claiming/submitting is still an external commitment and stays human-approved.",
+    "source": "https://algora.io/pricing/"
+  }
+}
