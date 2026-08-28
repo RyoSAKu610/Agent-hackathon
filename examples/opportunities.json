@@ -1,0 +1,39 @@
+{
+  "opportunities": [
+    {
+      "platform": "testerwork",
+      "title": "Japanese mobile localization exploratory test",
+      "url": "https://example.invalid/project/jp-localization",
+      "countries": ["Japan"],
+      "languages": ["Japanese"],
+      "qa_types": ["localization", "exploratory"],
+      "payout_usd": 24,
+      "confidential": false,
+      "requires_login": true,
+      "source": "example"
+    },
+    {
+      "platform": "utest",
+      "title": "Japan payment flow test",
+      "url": "https://example.invalid/project/payment",
+      "countries": ["Japan"],
+      "languages": ["Japanese"],
+      "qa_types": ["payment", "functional"],
+      "payout_usd": 18,
+      "confidential": true,
+      "requires_login": true,
+      "source": "example"
+    },
+    {
+      "platform": "generic-authorized",
+      "title": "Your own staging site smoke test",
+      "url": "https://example.com/",
+      "countries": [],
+      "languages": [],
+      "qa_types": ["functional"],
+      "confidential": false,
+      "requires_login": false,
+      "source": "example"
+    }
+  ]
+}
