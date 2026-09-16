@@ -137,6 +137,41 @@ First-time maximum API write cost for that exact path is $0.13 USDC; if already 
 
 `npm run agentsoul:probe` is diagnostic only. The external unpaid probe is non-blocking in CI because upstream error responses must not disable the rest of OpenSesame.
 
+## Chat -> cloud GO
+
+After `.github/workflows/opensesame-owner-go.yml` is present on the repository default branch, OpenSesame accepts three exact owner-created Issue titles:
+
+```text
+[OpenSesame TEST] ping
+[OpenSesame GO] agentsoul
+[OpenSesame GO] mint
+```
+
+The workflow rejects Issues whose author is not `RyoSAKu610`. Issue JSON is read by Node from `GITHUB_EVENT_PATH`; it is never interpolated into a shell command.
+
+Agent Soul Issue body:
+
+```json
+{
+  "title": "Artwork title",
+  "prompt": "generation prompt"
+}
+```
+
+Generic mint Issue body:
+
+```json
+{
+  "candidate": {
+    "...": "the same fully-bound candidate accepted by autopilot"
+  }
+}
+```
+
+The Agent Soul job receives only the Solana agent signing credentials it needs. The generic mint job receives the separate admin credentials needed to rotate an exact candidate policy and then re-lock the signer. Put these values in GitHub Actions Secrets/Variables; never in Issue bodies or repository files.
+
+This Issue entry point is what allows a chat instruction to be translated into an owner-authenticated cloud execution without exposing a public arbitrary-signing endpoint.
+
 ## Read-only radar
 
 ```bash
@@ -151,6 +186,6 @@ Currently checks AgentSea, agentsmint, Agent Soul and Metaplex Agent Registry wi
 npm run selftest
 ```
 
-The self-test verifies calldata binding, exact EVM policy construction, Solana required-signer enforcement, Solana program allowlisting, Agent Soul USDC constraints and absence of wildcard allow rules.
+The self-test verifies calldata binding, exact EVM policy construction, Solana required-signer enforcement, Solana program allowlisting, bounded SOL transfer policy construction, Agent Soul USDC constraints and absence of wildcard allow rules.
 
 GitHub Actions runs the self-test and radar on pushes to the cloud branch. The Agent Soul upstream probe is reported separately and cannot make the core verification fail.
