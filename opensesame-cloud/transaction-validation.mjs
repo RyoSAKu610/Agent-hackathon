@@ -1,7 +1,6 @@
 import { decodeFunctionData } from 'viem';
 import {
   Connection,
-  PublicKey,
   SystemProgram,
   VersionedTransaction
 } from '@solana/web3.js';
@@ -91,6 +90,7 @@ async function resolveAccountKeys(candidate, message) {
 
 export async function validateSolanaTransaction(candidate) {
   if (!candidate.transactionBase64) throw new Error('transactionBase64 is required');
+  if (!candidate.walletAddress) throw new Error('walletAddress is required for Solana validation');
   if (!Array.isArray(candidate.allowedPrograms) || candidate.allowedPrograms.length === 0) {
     throw new Error('allowedPrograms is required');
   }
@@ -99,6 +99,15 @@ export async function validateSolanaTransaction(candidate) {
   const tx = VersionedTransaction.deserialize(raw);
   const message = tx.message;
   const accountKeys = await resolveAccountKeys(candidate, message);
+  const requiredSigners = [];
+  for (let i = 0; i < message.header.numRequiredSignatures; i += 1) {
+    const signer = accountKeys.get(i);
+    if (signer) requiredSigners.push(signer.toBase58());
+  }
+  if (!requiredSigners.includes(String(candidate.walletAddress))) {
+    throw new Error('configured Solana wallet is not a required signer for this transaction');
+  }
+
   const allowed = new Set(candidate.allowedPrograms.map(String));
   const programs = new Set();
   const payments = [];
@@ -150,5 +159,5 @@ export async function validateSolanaTransaction(candidate) {
     }
   }
 
-  return { programs: [...programs], payments };
+  return { requiredSigners, programs: [...programs], payments };
 }
