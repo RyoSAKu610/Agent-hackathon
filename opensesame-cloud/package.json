@@ -1,0 +1,11 @@
+{
+  "name": "opensesame-cloud",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "radar": "node radar.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
