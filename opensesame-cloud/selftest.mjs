@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { compilePolicy } from './policy-compiler.mjs';
 import { buildAgentSoulPolicy, SOLANA_USDC_MINT } from './agentsoul-policy.mjs';
+import { chainConfig } from './rpc.mjs';
+import { executeMint } from './execute-mint.mjs';
+import { autopilot } from './autopilot.mjs';
 
 const evmCandidate = {
   id: 'selftest',
@@ -41,4 +44,18 @@ assert.ok(transferRule.conditions.some((c) => c.field === 'TransferChecked.desti
 assert.ok(transferRule.conditions.some((c) => c.field === 'TransferChecked.amount' && c.value === '100000'));
 assert.ok(!solPolicy.rules.some((r) => r.method === '*' && r.action === 'ALLOW'));
 
-console.log(JSON.stringify({ok:true, tests:['evm-exact-mint-policy','agentsoul-usdc-policy','no-wildcard-allow']}, null, 2));
+assert.equal(chainConfig({chainType:'solana', chain:'devnet'}).caip2, 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1');
+assert.equal(typeof executeMint, 'function');
+assert.equal(typeof autopilot, 'function');
+
+console.log(JSON.stringify({
+  ok:true,
+  tests:[
+    'evm-exact-mint-policy',
+    'agentsoul-usdc-policy',
+    'no-wildcard-allow',
+    'solana-caip2',
+    'executor-module-load',
+    'autopilot-module-load'
+  ]
+}, null, 2));
