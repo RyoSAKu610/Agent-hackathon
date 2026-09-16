@@ -111,6 +111,7 @@ export async function validateSolanaTransaction(candidate) {
   const allowed = new Set(candidate.allowedPrograms.map(String));
   const programs = new Set();
   const payments = [];
+  const fundingDebits = [];
 
   for (const ix of message.compiledInstructions) {
     const programKey = accountKeys.get(ix.programIdIndex);
@@ -124,6 +125,12 @@ export async function validateSolanaTransaction(candidate) {
 
     if (programKey.equals(SystemProgram.programId) && data.length >= 4) {
       const instruction = data.readUInt32LE(0);
+      if (instruction === 0) {
+        const source = accounts[0]?.toBase58();
+        const destination = accounts[1]?.toBase58();
+        const lamports = readU64LE(data, 4);
+        fundingDebits.push({ type: 'SOL_CREATE_ACCOUNT', source, destination, amount: lamports.toString() });
+      }
       if (instruction === 2) {
         const source = accounts[0]?.toBase58();
         const destination = accounts[1]?.toBase58();
@@ -132,6 +139,7 @@ export async function validateSolanaTransaction(candidate) {
           throw new Error(`unapproved SOL transfer to ${destination || 'unknown'} for ${lamports} lamports`);
         }
         payments.push({ type: 'SOL', source, destination, amount: lamports.toString() });
+        fundingDebits.push({ type: 'SOL_TRANSFER', source, destination, amount: lamports.toString() });
       }
     }
 
@@ -162,5 +170,5 @@ export async function validateSolanaTransaction(candidate) {
     }
   }
 
-  return { requiredSigners, programs: [...programs], payments };
+  return { requiredSigners, programs: [...programs], payments, fundingDebits };
 }
