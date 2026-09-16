@@ -72,10 +72,11 @@ function buildPaidFetch(operation) {
   return wrapFetchWithPayment(fetch, x402);
 }
 
-async function jsonResponse(response) {
+async function parseResponse(response, { allow404 = false } = {}) {
   const text = await response.text();
   let body = text;
   try { body = JSON.parse(text); } catch {}
+  if (allow404 && response.status === 404) return null;
   if (!response.ok) throw new Error(`Agent Soul HTTP ${response.status}: ${typeof body === 'string' ? body : JSON.stringify(body)}`);
   return body;
 }
@@ -83,21 +84,21 @@ async function jsonResponse(response) {
 async function paid(operation, path, init) {
   assertWriteEnabled();
   const paidFetch = buildPaidFetch(operation);
-  return jsonResponse(await paidFetch(`${BASE}${path}`, init));
+  return parseResponse(await paidFetch(`${BASE}${path}`, init));
 }
 
-const command = process.argv[2] || 'help';
-const walletAddress = process.env.PRIVY_SOLANA_WALLET_ADDRESS;
+export async function agentSoulStatus() {
+  const walletAddress = env('PRIVY_SOLANA_WALLET_ADDRESS');
+  return parseResponse(
+    await fetch(`${BASE}/api/v1/agents/me?wallet=${encodeURIComponent(walletAddress)}`),
+    { allow404: true }
+  );
+}
 
-if (command === 'status') {
-  if (!walletAddress) throw new Error('PRIVY_SOLANA_WALLET_ADDRESS is required');
-  const r = await fetch(`${BASE}/api/v1/agents/me?wallet=${encodeURIComponent(walletAddress)}`);
-  const text = await r.text();
-  console.log(text);
-} else if (command === 'register') {
-  const result = await paid('register', '/api/v1/agents/register', {
+export async function registerAgent() {
+  return paid('register', '/api/v1/agents/register', {
     method: 'POST',
-    headers: {'content-type': 'application/json'},
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       walletAddress: env('PRIVY_SOLANA_WALLET_ADDRESS'),
       name: process.env.AGENT_NAME || 'OpenSesame',
@@ -105,61 +106,127 @@ if (command === 'status') {
       artStyle: process.env.AGENT_ART_STYLE || 'generative systems'
     })
   });
-  console.log(JSON.stringify(result, null, 2));
-} else if (command === 'generate') {
-  const prompt = process.argv.slice(3).join(' ').trim();
-  if (!prompt) throw new Error('usage: npm run agentsoul -- generate "prompt"');
-  const result = await paid('generate', '/api/v1/artworks/generate-image', {
+}
+
+export async function generateImage(prompt) {
+  if (!prompt?.trim()) throw new Error('prompt is required');
+  return paid('generate', '/api/v1/artworks/generate-image', {
     method: 'POST',
-    headers: {'content-type': 'application/json'},
-    body: JSON.stringify({ walletAddress: env('PRIVY_SOLANA_WALLET_ADDRESS'), prompt })
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ walletAddress: env('PRIVY_SOLANA_WALLET_ADDRESS'), prompt: prompt.trim() })
   });
-  console.log(JSON.stringify(result, null, 2));
-} else if (command === 'draft') {
-  const file = process.argv[3];
-  if (!file) throw new Error('usage: npm run agentsoul -- draft draft.json');
-  const input = JSON.parse(fs.readFileSync(file, 'utf8'));
-  const result = await paid('draft', '/api/v1/artworks', {
+}
+
+export async function saveDraft({ imageUrl, title, prompt }) {
+  if (!imageUrl || !title || !prompt) throw new Error('imageUrl, title, and prompt are required');
+  return paid('draft', '/api/v1/artworks', {
     method: 'POST',
-    headers: {'content-type': 'application/json'},
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       walletAddress: env('PRIVY_SOLANA_WALLET_ADDRESS'),
-      imageUrl: input.imageUrl,
-      title: input.title,
-      prompt: input.prompt
+      imageUrl,
+      title,
+      prompt
     })
   });
-  console.log(JSON.stringify(result, null, 2));
-} else if (command === 'prepare-submit') {
-  const artworkId = process.argv[3];
-  if (!artworkId) throw new Error('usage: npm run agentsoul -- prepare-submit <artworkId>');
+}
+
+function submitApproval(artworkId) {
   const approval = {
     operation: 'agentsoul-submit-mint',
     walletAddress: env('PRIVY_SOLANA_WALLET_ADDRESS'),
     artworkId
   };
-  console.log(JSON.stringify({ ...approval, approvalSha256: hashApproval(approval) }, null, 2));
-} else if (command === 'submit') {
-  const artworkId = process.argv[3];
-  if (!artworkId) throw new Error('usage: npm run agentsoul -- submit <artworkId>');
-  const approval = {
-    operation: 'agentsoul-submit-mint',
-    walletAddress: env('PRIVY_SOLANA_WALLET_ADDRESS'),
-    artworkId
-  };
-  const expectedHash = hashApproval(approval);
-  if (process.env.MINT_APPROVAL_SHA256 !== expectedHash) {
-    throw new Error(`Mint approval mismatch. Required MINT_APPROVAL_SHA256=${expectedHash}`);
+  return { approval, approvalSha256: hashApproval(approval) };
+}
+
+export async function submitArtwork(artworkId, { approvalSha256 } = {}) {
+  if (!artworkId) throw new Error('artworkId is required');
+  const prepared = submitApproval(artworkId);
+  const supplied = approvalSha256 || process.env.MINT_APPROVAL_SHA256;
+  if (supplied !== prepared.approvalSha256) {
+    throw new Error(`Mint approval mismatch. Required MINT_APPROVAL_SHA256=${prepared.approvalSha256}`);
   }
   const result = await paid('submit', `/api/v1/artworks/${encodeURIComponent(artworkId)}/submit`, {
     method: 'POST',
-    headers: {'content-type': 'application/json'},
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ walletAddress: env('PRIVY_SOLANA_WALLET_ADDRESS') })
   });
-  if (!result?.mintAddress && result?.status !== 'pending') {
-    throw new Error(`Submit returned no mintAddress: ${JSON.stringify(result)}`);
+  if (!result?.mintAddress && !['pending', 'minted'].includes(result?.status)) {
+    throw new Error(`Submit returned no mintAddress/pending status: ${JSON.stringify(result)}`);
   }
-  console.log(JSON.stringify(result, null, 2));
-} else {
-  console.log('Commands: status | register | generate <prompt> | draft <draft.json> | prepare-submit <artworkId> | submit <artworkId>');
+  return result;
+}
+
+export async function runAgentSoulGo({ title, prompt }) {
+  assertWriteEnabled();
+  if (!title?.trim()) throw new Error('title is required');
+  if (!prompt?.trim()) throw new Error('prompt is required');
+
+  let profile = await agentSoulStatus();
+  let registeredNow = false;
+  if (!profile) {
+    const registration = await registerAgent();
+    profile = registration?.agent || registration;
+    registeredNow = true;
+  }
+
+  const generated = await generateImage(prompt);
+  if (!generated?.imageUrl) throw new Error(`Image generation returned no imageUrl: ${JSON.stringify(generated)}`);
+
+  const draft = await saveDraft({
+    imageUrl: generated.imageUrl,
+    title: title.trim(),
+    prompt: prompt.trim()
+  });
+  if (!draft?.id) throw new Error(`Draft creation returned no id: ${JSON.stringify(draft)}`);
+
+  const prepared = submitApproval(draft.id);
+  const minted = await submitArtwork(draft.id, { approvalSha256: prepared.approvalSha256 });
+
+  return {
+    ok: true,
+    operation: 'AGENTSOUL_GO',
+    registeredNow,
+    maxWriteCostRawUsdc: registeredNow ? '130000' : '120000',
+    profile,
+    generated,
+    draft,
+    mint: minted
+  };
+}
+
+async function cli() {
+  const command = process.argv[2] || 'help';
+
+  if (command === 'status') {
+    console.log(JSON.stringify(await agentSoulStatus(), null, 2));
+  } else if (command === 'register') {
+    console.log(JSON.stringify(await registerAgent(), null, 2));
+  } else if (command === 'generate') {
+    const prompt = process.argv.slice(3).join(' ').trim();
+    console.log(JSON.stringify(await generateImage(prompt), null, 2));
+  } else if (command === 'draft') {
+    const file = process.argv[3];
+    if (!file) throw new Error('usage: npm run agentsoul -- draft draft.json');
+    console.log(JSON.stringify(await saveDraft(JSON.parse(fs.readFileSync(file, 'utf8'))), null, 2));
+  } else if (command === 'prepare-submit') {
+    const artworkId = process.argv[3];
+    if (!artworkId) throw new Error('usage: npm run agentsoul -- prepare-submit <artworkId>');
+    console.log(JSON.stringify(submitApproval(artworkId), null, 2));
+  } else if (command === 'submit') {
+    const artworkId = process.argv[3];
+    console.log(JSON.stringify(await submitArtwork(artworkId), null, 2));
+  } else if (command === 'GO') {
+    const title = process.argv[3];
+    const prompt = process.argv.slice(4).join(' ').trim();
+    if (!title || !prompt) throw new Error('usage: npm run agentsoul -- GO "title" "prompt..."');
+    console.log(JSON.stringify(await runAgentSoulGo({ title, prompt }), null, 2));
+  } else {
+    console.log('Commands: status | register | generate <prompt> | draft <draft.json> | prepare-submit <artworkId> | submit <artworkId> | GO "title" "prompt..."');
+  }
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  await cli();
 }
