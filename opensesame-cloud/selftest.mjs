@@ -109,6 +109,8 @@ assert.ok(!solPolicy.rules.some((r) => r.method === '*' && r.action === 'ALLOW')
 assert.equal(chainConfig({ chainType: 'solana', chain: 'devnet' }).caip2, 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1');
 assert.equal(typeof executeMint, 'function');
 assert.equal(typeof autopilot, 'function');
+const { runAgentSoulGo } = await import('./agentsoul.mjs');
+assert.equal(typeof runAgentSoulGo, 'function');
 
 console.log(JSON.stringify({
   ok: true,
@@ -122,6 +124,7 @@ console.log(JSON.stringify({
     'no-wildcard-allow',
     'solana-caip2',
     'executor-module-load',
-    'autopilot-module-load'
+    'autopilot-module-load',
+    'agentsoul-module-load'
   ]
 }, null, 2));
