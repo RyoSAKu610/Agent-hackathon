@@ -1,9 +1,13 @@
+import { Keypair } from '@solana/web3.js';
+
 const endpoint = 'https://agentsoul.art/api/v1/agents/register';
+const probeWallet = Keypair.generate().publicKey.toBase58();
+
 const response = await fetch(endpoint, {
   method: 'POST',
   headers: {'content-type': 'application/json'},
   body: JSON.stringify({
-    walletAddress: '11111111111111111111111111111111',
+    walletAddress: probeWallet,
     name: 'OpenSesameProbe'
   })
 });
