@@ -51,11 +51,16 @@ assert.ok(evmPolicy.rules[0].conditions.some((c) => c.field === 'function_name' 
 assert.ok(!evmPolicy.rules.some((r) => r.method === '*'));
 
 const payer = Keypair.generate();
-const allocateIx = SystemProgram.allocate({ accountPubkey: payer.publicKey, space: 0 });
+const recipient = Keypair.generate().publicKey;
+const transferIx = SystemProgram.transfer({
+  fromPubkey: payer.publicKey,
+  toPubkey: recipient,
+  lamports: 1
+});
 const solMessage = new TransactionMessage({
   payerKey: payer.publicKey,
   recentBlockhash: '11111111111111111111111111111111',
-  instructions: [allocateIx]
+  instructions: [transferIx]
 }).compileToV0Message();
 const solTx = new VersionedTransaction(solMessage);
 const solCandidate = {
@@ -65,13 +70,22 @@ const solCandidate = {
   walletAddress: payer.publicKey.toBase58(),
   transactionBase64: Buffer.from(solTx.serialize()).toString('base64'),
   allowedPrograms: [SystemProgram.programId.toBase58()],
-  nativePayments: [],
+  nativePayments: [{ recipient: recipient.toBase58(), maxLamports: '1' }],
   splPayments: []
 };
 const solValidation = await validateSolanaTransaction(solCandidate);
 assert.ok(solValidation.requiredSigners.includes(payer.publicKey.toBase58()));
 assert.deepEqual(solValidation.programs, [SystemProgram.programId.toBase58()]);
-assert.equal(solValidation.payments.length, 0);
+assert.equal(solValidation.payments.length, 1);
+assert.equal(solValidation.payments[0].destination, recipient.toBase58());
+
+const solMintPolicy = compilePolicy(solCandidate);
+assert.equal(solMintPolicy.chain_type, 'solana');
+const boundedSolRule = solMintPolicy.rules.find((rule) => rule.name === 'Allow bounded SOL payment 1');
+assert.ok(boundedSolRule);
+assert.ok(boundedSolRule.conditions.some((c) => c.field === 'Transfer.to' && c.value === recipient.toBase58()));
+assert.ok(boundedSolRule.conditions.some((c) => c.field === 'Transfer.lamports' && c.value === '1'));
+assert.ok(!solMintPolicy.rules.some((rule) => rule.method === '*' && rule.action === 'ALLOW'));
 
 const badSigner = Keypair.generate().publicKey.toBase58();
 await assert.rejects(
@@ -103,6 +117,7 @@ console.log(JSON.stringify({
     'evm-exact-mint-policy',
     'solana-required-signer',
     'solana-program-allowlist',
+    'solana-bounded-transfer-policy',
     'agentsoul-usdc-policy',
     'no-wildcard-allow',
     'solana-caip2',
