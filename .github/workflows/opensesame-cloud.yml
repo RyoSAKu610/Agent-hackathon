@@ -3,7 +3,9 @@ name: OpenSesame Cloud Check
 on:
   workflow_dispatch:
   push:
-    branches: [opensesame-cloud]
+    branches:
+      - main
+      - 'opensesame-*'
     paths:
       - 'opensesame-cloud/**'
       - '.github/workflows/opensesame-cloud.yml'
