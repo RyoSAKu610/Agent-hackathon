@@ -3,7 +3,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "radar": "node radar.mjs"
+    "radar": "node radar.mjs",
+    "policy:compile": "node policy-compiler.mjs",
+    "preflight": "node preflight.mjs",
+    "privy:bootstrap": "node privy-bootstrap.mjs",
+    "mint:execute": "node execute-mint.mjs",
+    "selftest": "node selftest.mjs"
+  },
+  "dependencies": {
+    "@privy-io/node": "0.34.0"
   },
   "engines": {
     "node": ">=20"
