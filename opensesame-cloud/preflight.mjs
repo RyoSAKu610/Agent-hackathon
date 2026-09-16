@@ -3,9 +3,14 @@ import crypto from 'node:crypto';
 import {alchemyRpcUrl, chainConfig, rpc} from './rpc.mjs';
 import {compilePolicy} from './policy-compiler.mjs';
 
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+}
+
 export function canonicalHash(value) {
-  const stable = JSON.stringify(value, Object.keys(value).sort());
-  return crypto.createHash('sha256').update(stable).digest('hex');
+  return crypto.createHash('sha256').update(stableStringify(value)).digest('hex');
 }
 
 export async function preflight(candidate) {
