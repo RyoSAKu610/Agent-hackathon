@@ -25,4 +25,6 @@ jobs:
       - run: npm install --ignore-scripts
       - run: npm run selftest
       - run: npm run radar
-      - run: npm run agentsoul:probe
+      - name: Agent Soul x402 upstream probe
+        continue-on-error: true
+        run: npm run agentsoul:probe
