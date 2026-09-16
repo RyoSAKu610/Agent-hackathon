@@ -1,6 +1,10 @@
 import fs from 'node:fs';
 
 const chains = JSON.parse(fs.readFileSync(new URL('./config/chains.json', import.meta.url)));
+const SYSTEM_PROGRAM = '11111111111111111111111111111111';
+const TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
+const SENSITIVE_PROGRAMS = new Set([SYSTEM_PROGRAM, TOKEN_PROGRAM, TOKEN_2022_PROGRAM]);
 
 export function compilePolicy(candidate) {
   if (!candidate?.chainType || !candidate?.chain) throw new Error('candidate.chainType and candidate.chain are required');
@@ -51,45 +55,109 @@ export function compilePolicy(candidate) {
     const programs = candidate.allowedPrograms;
     if (!Array.isArray(programs) || programs.length === 0) throw new Error('allowedPrograms is required for Solana');
 
-    return {
-      version: '1.0',
-      name: `Mint solana ${String(candidate.id || 'candidate').slice(0, 25)}`.slice(0, 50),
-      chain_type: 'solana',
-      rules: [
-        {
-          name: 'Allow mint transaction programs',
-          method: 'signAndSendTransaction',
-          conditions: [{
-            field_source: 'solana_program_instruction',
-            field: 'programId',
-            operator: 'in',
-            value: programs
-          }],
-          action: 'ALLOW'
-        },
-        {
-          name: 'Deny direct SOL transfers',
-          method: 'signAndSendTransaction',
-          conditions: [{
+    const rules = [];
+    const ordinaryPrograms = programs.filter((program) => !SENSITIVE_PROGRAMS.has(String(program)));
+    if (ordinaryPrograms.length) {
+      rules.push({
+        name: 'Allow exact non-payment programs',
+        method: 'signAndSendTransaction',
+        conditions: [{
+          field_source: 'solana_program_instruction',
+          field: 'programId',
+          operator: 'in',
+          value: ordinaryPrograms
+        }],
+        action: 'ALLOW'
+      });
+    }
+
+    if (candidate.allowSystemCreate === true) {
+      rules.push({
+        name: 'Allow System Program Create used by this mint',
+        method: 'signAndSendTransaction',
+        conditions: [{
+          field_source: 'solana_system_program_instruction',
+          field: 'instructionName',
+          operator: 'eq',
+          value: 'Create'
+        }],
+        action: 'ALLOW'
+      });
+    }
+
+    for (const [index, payment] of (candidate.nativePayments || []).entries()) {
+      if (!payment?.recipient || payment.maxLamports === undefined) throw new Error(`nativePayments[${index}] requires recipient and maxLamports`);
+      rules.push({
+        name: `Allow bounded SOL payment ${index + 1}`,
+        method: 'signAndSendTransaction',
+        conditions: [
+          {
             field_source: 'solana_system_program_instruction',
             field: 'instructionName',
             operator: 'eq',
             value: 'Transfer'
-          }],
-          action: 'DENY'
-        },
-        {
-          name: 'Deny direct SPL transfers',
-          method: 'signAndSendTransaction',
-          conditions: [{
+          },
+          {
+            field_source: 'solana_system_program_instruction',
+            field: 'Transfer.to',
+            operator: 'eq',
+            value: String(payment.recipient)
+          },
+          {
+            field_source: 'solana_system_program_instruction',
+            field: 'Transfer.lamports',
+            operator: 'lte',
+            value: String(payment.maxLamports)
+          }
+        ],
+        action: 'ALLOW'
+      });
+    }
+
+    for (const [index, payment] of (candidate.splPayments || []).entries()) {
+      if (!payment?.mint || !payment?.destinationTokenAccount || payment.maxRawAmount === undefined) {
+        throw new Error(`splPayments[${index}] requires mint, destinationTokenAccount, and maxRawAmount`);
+      }
+      rules.push({
+        name: `Allow bounded SPL TransferChecked ${index + 1}`,
+        method: 'signAndSendTransaction',
+        conditions: [
+          {
             field_source: 'solana_token_program_instruction',
             field: 'instructionName',
-            operator: 'in',
-            value: ['Transfer', 'TransferChecked', 'Approve', 'ApproveChecked', 'SetAuthority']
-          }],
-          action: 'DENY'
-        }
-      ]
+            operator: 'eq',
+            value: 'TransferChecked'
+          },
+          {
+            field_source: 'solana_token_program_instruction',
+            field: 'TransferChecked.mint',
+            operator: 'eq',
+            value: String(payment.mint)
+          },
+          {
+            field_source: 'solana_token_program_instruction',
+            field: 'TransferChecked.destination',
+            operator: 'eq',
+            value: String(payment.destinationTokenAccount)
+          },
+          {
+            field_source: 'solana_token_program_instruction',
+            field: 'TransferChecked.amount',
+            operator: 'lte',
+            value: String(payment.maxRawAmount)
+          }
+        ],
+        action: 'ALLOW'
+      });
+    }
+
+    if (!rules.length) throw new Error('Solana candidate compiles to no allowed instructions');
+
+    return {
+      version: '1.0',
+      name: `Mint solana ${String(candidate.id || 'candidate').slice(0, 25)}`.slice(0, 50),
+      chain_type: 'solana',
+      rules
     };
   }
 
