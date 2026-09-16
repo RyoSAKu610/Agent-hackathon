@@ -13,6 +13,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  test:
+    if: >-
+      github.repository_owner == 'RyoSAKu610' &&
+      github.event.issue.user.login == 'RyoSAKu610' &&
+      github.event.issue.title == '[OpenSesame TEST] ping'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: opensesame-cloud
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+      - run: npm install --ignore-scripts
+      - run: npm run selftest
+      - run: node issue-command-runner.mjs
+      - name: Comment run result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          BODY="OpenSesame chat trigger TEST finished with status **${{ job.status }}**. Actions run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$BODY"
+
   agentsoul:
     if: >-
       github.repository_owner == 'RyoSAKu610' &&
