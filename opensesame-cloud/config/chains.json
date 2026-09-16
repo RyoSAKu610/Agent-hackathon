@@ -1,0 +1,18 @@
+{
+  "evm": {
+    "ethereum": {"chainId": 1, "caip2": "eip155:1", "alchemyNetwork": "eth-mainnet"},
+    "base": {"chainId": 8453, "caip2": "eip155:8453", "alchemyNetwork": "base-mainnet"},
+    "xlayer": {"chainId": 196, "caip2": "eip155:196", "alchemyNetwork": "xlayer-mainnet"},
+    "zora": {"chainId": 7777777, "caip2": "eip155:7777777", "alchemyNetwork": "zora-mainnet"},
+    "robinhood": {"chainId": 4663, "caip2": "eip155:4663", "alchemyNetwork": "robinhood-mainnet"},
+    "polygon": {"chainId": 137, "caip2": "eip155:137", "alchemyNetwork": "matic-mainnet"},
+    "arbitrum": {"chainId": 42161, "caip2": "eip155:42161", "alchemyNetwork": "arb-mainnet"},
+    "optimism": {"chainId": 10, "caip2": "eip155:10", "alchemyNetwork": "opt-mainnet"},
+    "sepolia": {"chainId": 11155111, "caip2": "eip155:11155111", "alchemyNetwork": "eth-sepolia", "testnet": true},
+    "base-sepolia": {"chainId": 84532, "caip2": "eip155:84532", "alchemyNetwork": "base-sepolia", "testnet": true}
+  },
+  "solana": {
+    "mainnet": {"caip2": "solana:mainnet", "alchemyNetwork": "solana-mainnet"},
+    "devnet": {"caip2": "solana:devnet", "alchemyNetwork": "solana-devnet", "testnet": true}
+  }
+}
