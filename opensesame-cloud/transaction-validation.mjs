@@ -126,12 +126,14 @@ export async function validateSolanaTransaction(candidate) {
     if (programKey.equals(SystemProgram.programId) && data.length >= 4) {
       const instruction = data.readUInt32LE(0);
       if (instruction === 0) {
+        if (candidate.allowSystemCreate !== true) {
+          throw new Error('System Program Create requires allowSystemCreate=true');
+        }
         const source = accounts[0]?.toBase58();
         const destination = accounts[1]?.toBase58();
         const lamports = readU64LE(data, 4);
         fundingDebits.push({ type: 'SOL_CREATE_ACCOUNT', source, destination, amount: lamports.toString() });
-      }
-      if (instruction === 2) {
+      } else if (instruction === 2) {
         const source = accounts[0]?.toBase58();
         const destination = accounts[1]?.toBase58();
         const lamports = readU64LE(data, 4);
@@ -140,22 +142,18 @@ export async function validateSolanaTransaction(candidate) {
         }
         payments.push({ type: 'SOL', source, destination, amount: lamports.toString() });
         fundingDebits.push({ type: 'SOL_TRANSFER', source, destination, amount: lamports.toString() });
+      } else {
+        throw new Error(`unsupported top-level System Program instruction ${instruction}`);
       }
     }
 
     if (programKey.equals(TOKEN_PROGRAM_ID) || programKey.equals(TOKEN_2022_PROGRAM_ID)) {
       const instruction = data[0];
+      if (instruction === 3) {
+        throw new Error('raw SPL Transfer is not allowed; use TransferChecked so mint and amount can be policy-bound');
+      }
       if ([4, 6, 13].includes(instruction)) {
         throw new Error(`unsafe SPL Token authority/approval instruction ${instruction} is not allowed`);
-      }
-      if (instruction === 3) {
-        const source = accounts[0]?.toBase58();
-        const destination = accounts[1]?.toBase58();
-        const amount = readU64LE(data, 1);
-        if (!destination || !matchSplPayment(candidate, destination, amount)) {
-          throw new Error(`unapproved SPL transfer to ${destination || 'unknown'} for ${amount}`);
-        }
-        payments.push({ type: 'SPL', source, destination, amount: amount.toString() });
       }
       if (instruction === 12) {
         const source = accounts[0]?.toBase58();
@@ -166,6 +164,8 @@ export async function validateSolanaTransaction(candidate) {
           throw new Error(`unapproved SPL TransferChecked to ${destination || 'unknown'} for ${amount}`);
         }
         payments.push({ type: 'SPL', source, mint, destination, amount: amount.toString() });
+      } else {
+        throw new Error(`unsupported top-level SPL Token instruction ${instruction}`);
       }
     }
   }
