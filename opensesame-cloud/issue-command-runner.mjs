@@ -1,6 +1,4 @@
 import fs from 'node:fs';
-import { autopilot } from './autopilot.mjs';
-import { runAgentSoulGo } from './agentsoul.mjs';
 
 const OWNER = 'RyoSAKu610';
 const eventPath = process.env.GITHUB_EVENT_PATH;
@@ -26,11 +24,13 @@ if (issue.title === '[OpenSesame TEST] ping') {
   if (typeof request.title !== 'string' || typeof request.prompt !== 'string') {
     throw new Error('Agent Soul command requires JSON fields: title, prompt');
   }
+  const { runAgentSoulGo } = await import('./agentsoul.mjs');
   result = await runAgentSoulGo({ title: request.title, prompt: request.prompt });
 } else if (issue.title === '[OpenSesame GO] mint') {
   if (!request.candidate || typeof request.candidate !== 'object') {
     throw new Error('Generic mint command requires JSON field: candidate');
   }
+  const { autopilot } = await import('./autopilot.mjs');
   result = await autopilot(request.candidate);
 } else {
   throw new Error(`unsupported OpenSesame issue command: ${issue.title}`);
