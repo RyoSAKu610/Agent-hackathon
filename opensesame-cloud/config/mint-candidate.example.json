@@ -1,0 +1,28 @@
+{
+  "id": "example-base-mint",
+  "protocol": "example",
+  "chainType": "evm",
+  "chain": "base-sepolia",
+  "walletAddress": "0x0000000000000000000000000000000000000001",
+  "transaction": {
+    "to": "0x0000000000000000000000000000000000000002",
+    "valueWei": "0",
+    "data": "0x00000000"
+  },
+  "contractCall": {
+    "functionName": "mint",
+    "abi": [
+      {
+        "type": "function",
+        "name": "mint",
+        "stateMutability": "nonpayable",
+        "inputs": [],
+        "outputs": []
+      }
+    ],
+    "arguments": {}
+  },
+  "expectedAsset": {
+    "standard": "ERC721"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "opensesame-cloud",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "radar": "node radar.mjs",
+    "policy:compile": "node policy-compiler.mjs",
+    "preflight": "node preflight.mjs",
+    "privy:bootstrap": "node privy-bootstrap.mjs",
+    "mint:execute": "node execute-mint.mjs",
+    "autopilot": "node autopilot.mjs",
+    "agentsoul": "node agentsoul.mjs",
+    "agentsoul:probe": "node agentsoul-probe.mjs",
+    "selftest": "node selftest.mjs"
+  },
+  "dependencies": {
+    "@privy-io/node": "0.34.0",
+    "@solana/spl-token": "0.4.15",
+    "@solana/web3.js": "1.99.0",
+    "@x402/fetch": "2.26.0",
+    "viem": "2.56.5"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

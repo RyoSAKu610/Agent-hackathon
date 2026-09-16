@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "mode": "read-only",
+  "defaultDecision": "deny",
+  "signerBackend": "external-policy-enforced-signer",
+  "evm": {
+    "allowedChains": ["base"],
+    "allowedContracts": [],
+    "allowedMethods": [],
+    "maxNativeValueWei": "0",
+    "allowArbitraryApproval": false,
+    "allowTransfer": false,
+    "allowSwap": false,
+    "allowBridge": false,
+    "allowRawMessageSigning": false,
+    "allowKeyExport": false,
+    "allowPolicyMutationByAgent": false
+  },
+  "solana": {
+    "allowedClusters": ["mainnet-beta"],
+    "allowedPrograms": [],
+    "allowedInstructions": [],
+    "maxLamports": "0",
+    "allowTokenTransfer": false,
+    "allowDelegate": false,
+    "allowAuthorityChange": false,
+    "allowKeyExport": false,
+    "allowPolicyMutationByAgent": false
+  },
+  "metaplex": {
+    "executionDelegateEnabled": false,
+    "reason": "Metaplex execution delegation is broad authority, not function-scoped."
+  }
+}

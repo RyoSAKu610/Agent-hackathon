@@ -1,0 +1,31 @@
+name: OpenSesame Cloud Check
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [opensesame-cloud]
+    paths:
+      - 'opensesame-cloud/**'
+      - '.github/workflows/opensesame-cloud.yml'
+      - '.github/workflows/opensesame-owner-go.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: opensesame-cloud
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+      - run: npm install --ignore-scripts
+      - run: npm run selftest
+      - run: npm run radar
+      - name: Agent Soul x402 upstream probe
+        continue-on-error: true
+        run: npm run agentsoul:probe
