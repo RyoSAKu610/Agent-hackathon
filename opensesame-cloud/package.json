@@ -8,6 +8,7 @@
     "preflight": "node preflight.mjs",
     "privy:bootstrap": "node privy-bootstrap.mjs",
     "mint:execute": "node execute-mint.mjs",
+    "autopilot": "node autopilot.mjs",
     "agentsoul": "node agentsoul.mjs",
     "agentsoul:probe": "node agentsoul-probe.mjs",
     "selftest": "node selftest.mjs"
