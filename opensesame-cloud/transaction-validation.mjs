@@ -125,12 +125,13 @@ export async function validateSolanaTransaction(candidate) {
     if (programKey.equals(SystemProgram.programId) && data.length >= 4) {
       const instruction = data.readUInt32LE(0);
       if (instruction === 2) {
+        const source = accounts[0]?.toBase58();
         const destination = accounts[1]?.toBase58();
         const lamports = readU64LE(data, 4);
         if (!destination || !matchNativePayment(candidate, destination, lamports)) {
           throw new Error(`unapproved SOL transfer to ${destination || 'unknown'} for ${lamports} lamports`);
         }
-        payments.push({ type: 'SOL', destination, amount: lamports.toString() });
+        payments.push({ type: 'SOL', source, destination, amount: lamports.toString() });
       }
     }
 
@@ -140,21 +141,23 @@ export async function validateSolanaTransaction(candidate) {
         throw new Error(`unsafe SPL Token authority/approval instruction ${instruction} is not allowed`);
       }
       if (instruction === 3) {
+        const source = accounts[0]?.toBase58();
         const destination = accounts[1]?.toBase58();
         const amount = readU64LE(data, 1);
         if (!destination || !matchSplPayment(candidate, destination, amount)) {
           throw new Error(`unapproved SPL transfer to ${destination || 'unknown'} for ${amount}`);
         }
-        payments.push({ type: 'SPL', destination, amount: amount.toString() });
+        payments.push({ type: 'SPL', source, destination, amount: amount.toString() });
       }
       if (instruction === 12) {
+        const source = accounts[0]?.toBase58();
         const mint = accounts[1]?.toBase58();
         const destination = accounts[2]?.toBase58();
         const amount = readU64LE(data, 1);
         if (!destination || !matchSplPayment(candidate, destination, amount, mint)) {
           throw new Error(`unapproved SPL TransferChecked to ${destination || 'unknown'} for ${amount}`);
         }
-        payments.push({ type: 'SPL', mint, destination, amount: amount.toString() });
+        payments.push({ type: 'SPL', source, mint, destination, amount: amount.toString() });
       }
     }
   }
