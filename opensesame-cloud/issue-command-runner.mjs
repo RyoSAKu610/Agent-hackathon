@@ -10,7 +10,7 @@ const event = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
 const issue = event.issue;
 if (!issue) throw new Error('GitHub event contains no issue');
 if (event.repository?.owner?.login !== OWNER) throw new Error('repository owner mismatch');
-if (issue.user?.login !== OWNER) throw new Error('only the repository owner may issue OpenSesame GO commands');
+if (issue.user?.login !== OWNER) throw new Error('only the repository owner may issue OpenSesame commands');
 
 let request;
 try {
@@ -20,7 +20,9 @@ try {
 }
 
 let result;
-if (issue.title === '[OpenSesame GO] agentsoul') {
+if (issue.title === '[OpenSesame TEST] ping') {
+  result = { ok: true, operation: 'TEST_PING' };
+} else if (issue.title === '[OpenSesame GO] agentsoul') {
   if (typeof request.title !== 'string' || typeof request.prompt !== 'string') {
     throw new Error('Agent Soul command requires JSON fields: title, prompt');
   }
