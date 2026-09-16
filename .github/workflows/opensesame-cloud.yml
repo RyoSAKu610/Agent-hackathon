@@ -1,0 +1,25 @@
+name: OpenSesame Cloud Check
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [opensesame-cloud]
+    paths:
+      - 'opensesame-cloud/**'
+      - '.github/workflows/opensesame-cloud.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: opensesame-cloud
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm run radar
