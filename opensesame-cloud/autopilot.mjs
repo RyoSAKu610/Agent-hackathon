@@ -1,23 +1,81 @@
 import fs from 'node:fs';
-import { Connection, PublicKey, LAMPORTS_PER_SOL, VersionedTransaction } from '@solana/web3.js';
-import { chainConfig, rpcAny, rpcUrls } from './rpc.mjs';
+import { Connection, PublicKey, VersionedTransaction } from '@solana/web3.js';
+import { chainConfig, rpcAny } from './rpc.mjs';
 import { preflight, canonicalHash } from './preflight.mjs';
 import { executeMint } from './execute-mint.mjs';
+import { validateSolanaTransaction } from './transaction-validation.mjs';
 
 function usage() {
   throw new Error('usage: npm run autopilot -- GO <candidate.json>');
 }
 
+function solanaMessageBase64(candidate) {
+  const tx = VersionedTransaction.deserialize(Buffer.from(candidate.transactionBase64, 'base64'));
+  return Buffer.from(tx.message.serialize()).toString('base64');
+}
+
+async function deriveSolanaRequiredLamports(candidate, localValidation) {
+  const feeResult = await rpcAny(candidate, 'getFeeForMessage', [solanaMessageBase64(candidate), { commitment: 'confirmed' }]);
+  if (feeResult?.value == null) {
+    return { ok: false, action: 'REFRESH_SOLANA_TRANSACTION_BLOCKHASH' };
+  }
+  const feeLamports = BigInt(feeResult.value);
+  const wallet = String(candidate.walletAddress);
+  const transactionDebits = (localValidation.fundingDebits || [])
+    .filter((debit) => debit.source === wallet)
+    .reduce((sum, debit) => sum + BigInt(debit.amount), 0n);
+  return {
+    ok: true,
+    feeLamports,
+    transactionDebits,
+    requiredLamports: feeLamports + transactionDebits
+  };
+}
+
 async function ensureSolanaDevnetFunds(candidate) {
   const address = new PublicKey(candidate.walletAddress);
   const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
-  let balance = await connection.getBalance(address, 'confirmed');
-  if (balance > 0) return { funded: true, balanceLamports: balance, faucetUsed: false };
+  let balance = BigInt(await connection.getBalance(address, 'confirmed'));
+  if (balance > 0n) return { funded: true, balanceLamports: balance.toString(), faucetUsed: false };
 
-  const signature = await connection.requestAirdrop(address, LAMPORTS_PER_SOL);
+  const localValidation = await validateSolanaTransaction(candidate);
+  const derived = await deriveSolanaRequiredLamports(candidate, localValidation);
+  if (!derived.ok) {
+    return { funded: false, faucetUsed: false, ...derived };
+  }
+
+  const requested = candidate.faucetLamports !== undefined
+    ? BigInt(candidate.faucetLamports)
+    : derived.requiredLamports;
+  if (requested < derived.requiredLamports) {
+    return {
+      funded: false,
+      faucetUsed: false,
+      action: 'FAUCET_AMOUNT_BELOW_TRANSACTION_REQUIREMENT',
+      requestedLamports: requested.toString(),
+      requiredLamports: derived.requiredLamports.toString()
+    };
+  }
+  if (requested <= 0n) {
+    return {
+      funded: false,
+      faucetUsed: false,
+      action: 'NO_SOLANA_FAUCET_REQUIRED_AMOUNT',
+      requiredLamports: derived.requiredLamports.toString()
+    };
+  }
+
+  const signature = await connection.requestAirdrop(address, Number(requested));
   await connection.confirmTransaction(signature, 'confirmed');
-  balance = await connection.getBalance(address, 'confirmed');
-  return { funded: balance > 0, balanceLamports: balance, faucetUsed: true, faucetSignature: signature };
+  balance = BigInt(await connection.getBalance(address, 'confirmed'));
+  return {
+    funded: balance >= derived.requiredLamports,
+    balanceLamports: balance.toString(),
+    requiredLamports: derived.requiredLamports.toString(),
+    requestedLamports: requested.toString(),
+    faucetUsed: true,
+    faucetSignature: signature
+  };
 }
 
 async function ensureEvmTestnetFunds(candidate) {
@@ -65,14 +123,8 @@ async function checkEvmFunding(candidate, check) {
 async function checkSolanaFunding(candidate, check) {
   const balanceResult = await rpcAny(candidate, 'getBalance', [candidate.walletAddress, { commitment: 'confirmed' }]);
   const balanceLamports = BigInt(balanceResult?.value ?? 0);
-  const tx = VersionedTransaction.deserialize(Buffer.from(candidate.transactionBase64, 'base64'));
-  const messageBase64 = Buffer.from(tx.message.serialize()).toString('base64');
-  const feeResult = await rpcAny(candidate, 'getFeeForMessage', [messageBase64, { commitment: 'confirmed' }]);
-  const feeLamports = BigInt(feeResult?.value ?? 0);
-  const nativeSpendLamports = (check.localValidation?.payments || [])
-    .filter((payment) => payment.type === 'SOL')
-    .reduce((sum, payment) => sum + BigInt(payment.amount), 0n);
-  const requiredLamports = feeLamports + nativeSpendLamports;
+  const derived = await deriveSolanaRequiredLamports(candidate, check.localValidation);
+  if (!derived.ok) return { funded: false, asset: 'SOL/SPL', ...derived };
 
   const tokenRequirements = new Map();
   for (const payment of check.localValidation?.payments || []) {
@@ -87,15 +139,15 @@ async function checkSolanaFunding(candidate, check) {
     tokenChecks.push({ source, balanceRaw: balanceRaw.toString(), requiredRaw: requiredRaw.toString(), funded: balanceRaw >= requiredRaw });
   }
 
-  const nativeFunded = balanceLamports >= requiredLamports;
+  const nativeFunded = balanceLamports >= derived.requiredLamports;
   const tokensFunded = tokenChecks.every((item) => item.funded);
   return {
     funded: nativeFunded && tokensFunded,
     asset: 'SOL/SPL',
     balanceLamports: balanceLamports.toString(),
-    requiredLamports: requiredLamports.toString(),
-    feeLamports: feeLamports.toString(),
-    nativeSpendLamports: nativeSpendLamports.toString(),
+    requiredLamports: derived.requiredLamports.toString(),
+    feeLamports: derived.feeLamports.toString(),
+    transactionDebitsLamports: derived.transactionDebits.toString(),
     tokenChecks,
     action: nativeFunded && tokensFunded
       ? null
